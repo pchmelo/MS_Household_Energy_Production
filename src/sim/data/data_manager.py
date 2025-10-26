@@ -8,18 +8,21 @@ except ImportError:
 
 
 class DataManager:
-    def __init__(self):
+    def __init__(self, smooth_window=3):
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.datafiles_dir = os.path.join(self.base_dir, "datafiles")
 
         self.price_data_filename = "market_prices.csv"
         self.solar_data_filename = "solar_production.csv"
         self.wind_data_filename = "wind_production.csv"
+        
+        self.smooth_window = smooth_window  
 
         
     def start_data_collection(self, date: str):
         self.date = date
-        
+        self.last_time_stamp = (0, 0)
+
         date_folder = os.path.join(self.datafiles_dir, date)
 
         if not os.path.exists(date_folder) or not os.path.isdir(date_folder):
@@ -41,10 +44,12 @@ class DataManager:
             self.start_data_collection(date)
 
         hour, minute = self.parse_timestamp(time_stamp)
-        
-        price = None
-        solar_production = None
-        wind_production = None
+
+        price = self.calculate_price_interval(hour, minute)
+        solar_production = self.calculate_solar_production_interval(hour, minute)
+        wind_production = self.calculate_wind_production_interval(hour, minute)
+
+        self.last_time_stamp = (hour, minute)
 
         return price, solar_production, wind_production
 
@@ -56,9 +61,131 @@ class DataManager:
         self.df_price_data = pd.read_csv(os.path.join(
             self.datafiles_dir, self.date, self.price_data_filename))
         
+        self.df_solar_production['datetime'] = pd.to_datetime(
+            self.df_solar_production.iloc[:, 0], format='%H:%M'
+        )
+        self.df_solar_production['total_minutes'] = (
+            self.df_solar_production['datetime'].dt.hour * 60 + 
+            self.df_solar_production['datetime'].dt.minute
+        )
+        
+        self.df_wind_production['datetime'] = pd.to_datetime(
+            self.df_wind_production.iloc[:, 0], format='%H:%M'
+        )
+        self.df_wind_production['total_minutes'] = (
+            self.df_wind_production['datetime'].dt.hour * 60 + 
+            self.df_wind_production['datetime'].dt.minute
+        )
+        
+        self.df_price_data['datetime'] = pd.to_datetime(
+            self.df_price_data.iloc[:, 0], format='%H:%M'
+        )
+        self.df_price_data['total_minutes'] = (
+            self.df_price_data['datetime'].dt.hour * 60 + 
+            self.df_price_data['datetime'].dt.minute
+        )
+        
     def parse_timestamp(self, timestamp: str):
         hour, minute = map(int, timestamp.split(":"))
         return hour, minute
+    
+    def calculate_solar_production_interval(self, new_hour: int, new_minute: int):
+        last_hour, last_minute = self.last_time_stamp
+        
+        last_total_minutes = last_hour * 60 + last_minute
+        new_total_minutes = new_hour * 60 + new_minute
+        
+        interval_hours = (new_total_minutes - last_total_minutes) / 60
+        
+        mask = (self.df_solar_production['total_minutes'] > last_total_minutes) & \
+            (self.df_solar_production['total_minutes'] <= new_total_minutes)
+        interval_data = self.df_solar_production[mask]
+        
+        production_col = self.df_solar_production.columns[1] 
+        
+        start_value = self.df_solar_production.set_index('total_minutes')[production_col].reindex(
+            range(last_total_minutes, new_total_minutes + 1)
+        ).interpolate(method='linear')[last_total_minutes]
+        
+        end_value = self.df_solar_production.set_index('total_minutes')[production_col].reindex(
+            range(last_total_minutes, new_total_minutes + 1)
+        ).interpolate(method='linear')[new_total_minutes]
+        
+        if len(interval_data) > 0:
+            avg_power = interval_data[production_col].mean()
+        else:
+            avg_power = (start_value + end_value) / 2
+        
+        energy_production = avg_power * interval_hours
+        
+        return energy_production
+
+    def calculate_wind_production_interval(self, new_hour: int, new_minute: int):
+        last_hour, last_minute = self.last_time_stamp
+        
+        last_total_minutes = last_hour * 60 + last_minute
+        new_total_minutes = new_hour * 60 + new_minute
+        
+        interval_hours = (new_total_minutes - last_total_minutes) / 60
+        
+        mask = (self.df_wind_production['total_minutes'] > last_total_minutes) & \
+            (self.df_wind_production['total_minutes'] <= new_total_minutes)
+        interval_data = self.df_wind_production[mask]
+        
+        print(f"\n=== Wind Debug ===")
+        print(f"Interval: {last_total_minutes} to {new_total_minutes} minutes ({interval_hours} hours)")
+        print(f"Points found: {len(interval_data)}")
+        if len(interval_data) > 0:
+            print(f"Interval data:\n{interval_data[['total_minutes', self.df_wind_production.columns[1]]]}")
+        
+        production_col = self.df_wind_production.columns[1]
+        
+        if len(interval_data) > 0:
+            avg_power = interval_data[production_col].mean()
+            print(f"Average power: {avg_power} MW")
+        else:
+            start_value = self.df_wind_production.set_index('total_minutes')[production_col].reindex(
+                range(last_total_minutes, new_total_minutes + 1)
+            ).interpolate(method='linear')[last_total_minutes]
+            
+            end_value = self.df_wind_production.set_index('total_minutes')[production_col].reindex(
+                range(last_total_minutes, new_total_minutes + 1)
+            ).interpolate(method='linear')[new_total_minutes]
+            
+            avg_power = (start_value + end_value) / 2
+            print(f"No data points, using interpolation: avg_power = {avg_power} MW")
+        
+        energy_production = avg_power * interval_hours
+        print(f"Energy production: {energy_production} MWh")
+        
+        return energy_production
+
+    def calculate_price_interval(self, new_hour: int, new_minute: int):
+        last_hour, last_minute = self.last_time_stamp
+        
+        last_total_minutes = last_hour * 60 + last_minute
+        new_total_minutes = new_hour * 60 + new_minute
+        
+        mask = (self.df_price_data['total_minutes'] > last_total_minutes) & \
+            (self.df_price_data['total_minutes'] <= new_total_minutes)
+        interval_data = self.df_price_data[mask]
+        
+        price_col = self.df_price_data.columns[1]
+        
+        if len(interval_data) > 0:
+            mean_price = interval_data[price_col].mean()
+        else:
+            start_value = self.df_price_data.set_index('total_minutes')[price_col].reindex(
+                range(last_total_minutes, new_total_minutes + 1)
+            ).interpolate(method='linear')[last_total_minutes]
+            
+            end_value = self.df_price_data.set_index('total_minutes')[price_col].reindex(
+                range(last_total_minutes, new_total_minutes + 1)
+            ).interpolate(method='linear')[new_total_minutes]
+            
+            mean_price = (start_value + end_value) / 2
+
+        return mean_price
         
 
 data_manager = DataManager()
@@ -66,3 +193,11 @@ data_manager = DataManager()
 
 if __name__ == "__main__":
     data_manager.start_data_collection("2025-08-25")
+    
+    price, solar_prod, wind_prod = data_manager.get_model_data_entry(
+        date="2025-08-25", time_stamp="1:30")
+    print(f"Price: {price}, Solar Production: {solar_prod}, Wind Production: {wind_prod}")
+
+    price, solar_prod, wind_prod = data_manager.get_model_data_entry(
+        time_stamp="2:30")  
+    print(f"Price: {price}, Solar Production: {solar_prod}, Wind Production: {wind_prod}")
