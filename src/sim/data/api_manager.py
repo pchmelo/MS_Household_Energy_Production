@@ -12,6 +12,11 @@ class APIManager:
 
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.datafiles_dir = os.path.join(self.base_dir, "datafiles")
+        
+        # Add filenames
+        self.price_data_filename = "market_prices.csv"
+        self.solar_data_filename = "solar_production.csv"
+        self.wind_data_filename = "wind_production.csv"
 
     def _make_request(self, endpoint: str, params: Dict) -> Dict:
         params["culture"] = self.lang
@@ -75,7 +80,7 @@ class APIManager:
                     break
                 skip_flag = True
         
-
+        # Create DataFrames
         df_solar = pd.DataFrame({
             f"Time ({time_unit})": time_series,
             f"Production ({production_unit})": solar_series
@@ -86,11 +91,16 @@ class APIManager:
             f"Production ({production_unit})": wind_series
         })
 
-        solar_csv_path = os.path.join(folder_path, "solar_production.csv")
-        wind_csv_path = os.path.join(folder_path, "wind_production.csv")
+        # Save to CSV
+        solar_csv_path = os.path.join(folder_path, self.solar_data_filename)
+        wind_csv_path = os.path.join(folder_path, self.wind_data_filename)
 
-        df_solar.to_csv(solar_csv_path, index=False)
-        df_wind.to_csv(wind_csv_path, index=False)
+        production_col = f"Production ({production_unit})"
+        df_solar[[f"Time ({time_unit})", production_col]].to_csv(solar_csv_path, index=False)
+        df_wind[[f"Time ({time_unit})", production_col]].to_csv(wind_csv_path, index=False)
+        
+        print(f"Solar production saved to {solar_csv_path}")
+        print(f"Wind production saved to {wind_csv_path}")
 
         return df_solar, df_wind
 
@@ -109,13 +119,48 @@ class APIManager:
                 price_series = series.get("data", [])
                 break
 
+        formatted_times = []
+        filtered_prices = []
+        
+        # Find hour 24 value - convert string to int
+        hour_24_value = None
+        for i, time_val in enumerate(time_series):
+            try:
+                hour = int(time_val)
+                if hour == 24:
+                    hour_24_value = price_series[i]
+                    break
+            except (ValueError, TypeError):
+                continue
+        
+        # Add hour 0 with value from hour 24
+        if hour_24_value is not None:
+            formatted_times.append("00:00")
+            filtered_prices.append(hour_24_value)
+        
+        # Process all other hours
+        for i, time_val in enumerate(time_series):
+            try:
+                hour = int(time_val)  # Convert string to int
+                if hour == 24:  # Skip hour 24
+                    continue
+                if hour == 0:  # Skip hour 0 if it exists
+                    continue
+                formatted_times.append(f"{hour:02d}:00")
+                filtered_prices.append(price_series[i])
+            except (ValueError, TypeError):
+                # If it's not a number, keep it as is
+                formatted_times.append(str(time_val))
+                filtered_prices.append(price_series[i])
+
         df = pd.DataFrame({
-            f"Time ({time_unit})": time_series,
-            f"Price ({production_unit})": price_series
+            'Time (Hour)': formatted_times,
+            'Price (€/MWh)': filtered_prices
         })
         
-        csv_path = os.path.join(folder_path, "market_prices.csv")
+        csv_path = os.path.join(folder_path, self.price_data_filename)
         df.to_csv(csv_path, index=False)
+        print(f"Market data saved to {csv_path}")
         
         return df
 
