@@ -7,7 +7,8 @@ from mesa.datacollection import DataCollector
 from sim.agent.agent_base import HEMSAgent
 
 load_dotenv()
-hour_interval, minute_interval = os.getenv("INTERVAL", (1, 0))
+interval_str = os.getenv("INTERVAL", "1,0")
+hour_interval, minute_interval = map(int, interval_str.split(","))
 max_capacity = os.getenv("MAX_CAPACITY")
 
 def get_steps():
@@ -33,7 +34,7 @@ class HEMSModel(Model):
 
         # Initialize model parameters
         self.steps = get_steps()
-        self.battery_capacity = max_capacity
+        self.battery_capacity = int(max_capacity)
         self.cur_capacity = 0
         self.cur_hour = (0, 0)
 

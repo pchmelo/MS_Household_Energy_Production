@@ -9,10 +9,10 @@ max_capacity = os.getenv("MAX_CAPACITY")
 tariff = os.getenv("TARIFF", 0.75)
 
 class BaselineAgent:
-    
+
     log_type = "baseline_input"
 
-    def __init__(self, battery_max_capacity = max_capacity, tariff = tariff):
+    def __init__(self, battery_max_capacity = int(max_capacity), tariff = float(tariff)):
         self.battery_max_capacity = battery_max_capacity
         self.tariff = tariff
 
@@ -59,7 +59,6 @@ class BaselineAgent:
                 self.actions.append({"battery_to_consumption": self.cur_capacity})
 
                 self.cur_capacity = 0
-
 
                 self.balance -= current_consumption * self.price * self.tariff
                 self.actions.append({"grid_to_consumption": current_consumption})
