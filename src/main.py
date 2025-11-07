@@ -23,8 +23,12 @@ if __name__ == "__main__":
 
     elif mode == "train":
         from sim.agent.smart.train import train_sac_agent
-        train_sac_agent(total_timesteps=100_000, use_gpu=True)
-        print("Training completed! You can now set MODE=run_model and AGENT_TYPE=smart to test the agent.")
+
+        train_sac_agent(
+            total_timesteps=200000,
+            use_gpu=True,
+            n_envs=4
+        )
 
     else:
         print("Invalid MODE in .env file. Please set MODE to 'run_model' or 'train'.")

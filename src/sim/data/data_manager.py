@@ -9,7 +9,7 @@ except ImportError:
 
 load_dotenv()
 
-DATE_DEFAULT_DATE = os.getenv("DATE", "2023-01-01")
+DATE_DEFAULT_DATE = os.getenv("DATE", "2025-01-01")
 
 class DataManager:
     def __init__(self, smooth_window=3, date=DATE_DEFAULT_DATE):

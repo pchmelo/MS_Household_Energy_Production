@@ -1,7 +1,7 @@
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-from sim.data.data_manager import data_manager
+from sim.data.data_manager import DataManager
 import os
 from dotenv import load_dotenv
 
@@ -18,13 +18,23 @@ class HEMSEnvironment(gym.Env):
     metadata = {"render_modes": []}
     
     def __init__(self, battery_max_capacity=max_capacity, tariff=tariff, 
-                 hour_interval=hour_interval, minute_interval=minute_interval, max_steps=None):
+                 hour_interval=hour_interval, minute_interval=minute_interval, 
+                 max_steps=None, date=None):
         super().__init__()
         
         self.battery_max_capacity = battery_max_capacity
         self.tariff = tariff
         self.hour_interval = hour_interval
         self.minute_interval = minute_interval
+        self.date = date  # Add date parameter
+        
+        # Create a separate data manager instance for this environment
+        if date:
+            self.data_manager = DataManager(date=date)
+            self.data_manager.start_data_collection(date)
+        else:
+            from sim.data.data_manager import data_manager
+            self.data_manager = data_manager
         
         # Calculate max steps based on interval
         if max_steps is None:
@@ -56,9 +66,9 @@ class HEMSEnvironment(gym.Env):
         )
         
         # Normalization constants (ADJUST BASED ON DATA!!!)
-        self.max_price = 0.15  # €/kWh
-        self.max_production = 5.0  # kW
-        self.max_consumption = 3.0  # kW
+        self.max_price = 1.0  # €/kWh
+        self.max_production = 10.0  # kW
+        self.max_consumption = 10.0  # kW
         
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -71,7 +81,7 @@ class HEMSEnvironment(gym.Env):
         return self._get_observation(), {}
     
     def _get_observation(self):
-        price, solar, wind, consumption = data_manager.get_model_data_entry(time_stamp=self.time_stamp)
+        price, solar, wind, consumption = self.data_manager.get_model_data_entry(time_stamp=self.time_stamp)
         
         # Normalize values
         battery_normalized = self.cur_capacity / self.battery_max_capacity
@@ -111,7 +121,7 @@ class HEMSEnvironment(gym.Env):
         self.time_stamp = (hour, minute)
     
     def step(self, action):
-        price, solar, wind, consumption = data_manager.get_model_data_entry(
+        price, solar, wind, consumption = self.data_manager.get_model_data_entry(
             time_stamp=self.time_stamp
         )
         
@@ -187,7 +197,7 @@ class HEMSEnvironment(gym.Env):
             penalty += 50 * grid_to_battery * price
         
         # Reward = profit - penalties
-        reward = total_revenue - total_cost - penalty - battery_usage_penalty
+        reward = (total_revenue - total_cost) * 10 - penalty - battery_usage_penalty
         
         # Update battery capacity
         battery_net_change = production_to_battery + grid_to_battery - battery_to_consumption - battery_to_grid

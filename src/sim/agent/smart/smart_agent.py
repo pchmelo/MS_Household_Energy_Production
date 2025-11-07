@@ -19,9 +19,9 @@ class SmartAgent:
         self.tariff = tariff
 
         # Normalization constants (MUST MATCH TRAINING ENVIRONMENT!!!)
-        self.max_price = 0.15
-        self.max_production = 5.0
-        self.max_consumption = 3.0
+        self.max_price = 1.0
+        self.max_production = 10.0
+        self.max_consumption = 10.0
 
         # Load trained model
         if model_path is None:
