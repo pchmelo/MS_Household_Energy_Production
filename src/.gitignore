@@ -38,3 +38,6 @@ Thumbs.db
 
 # mypy
 .mypy_cache/
+
+# temporary html,css and javascript
+.src/gui/frontend
