@@ -5,11 +5,15 @@ from datetime import datetime
 
 class LogController:
     colors = {
-        "baseline_input": "\033[91m",                 
+        "baseline_input": "\033[91m",
+        "action_validation": "\033[94m",
+        "smart_input": "\033[92m",
     }
 
     type_mapping = {
         "baseline_input": "BASELINE INPUT",
+        "action_validation": "ACTION VALIDATION",
+        "smart_input": "SMART INPUT",
     }
 
     reset = "\033[0m"  
@@ -18,7 +22,9 @@ class LogController:
         load_dotenv()
         self.log_active = os.getenv("LOG_ACTIVE", "TRUE") == "TRUE"
         
-        self.baseline_input = os.getenv("BASELINE_INPUT", "FALSE")
+        self.baseline_input = os.getenv("BASELINE_INPUT", "FALSE") == "TRUE"
+        self.action_validation = os.getenv("ACTION_VALIDATION", "FALSE") == "TRUE"
+        self.smart_input = os.getenv("SMART_INPUT", "FALSE") == "TRUE"
 
         current_date = datetime.now().strftime("%Y-%m-%d")
         log_folder = os.path.join(os.path.dirname(__file__), "files")
@@ -33,10 +39,13 @@ class LogController:
 
     
     def log_message(self, message, type):
-        if self.log_active == "TRUE":
-            if type == "baseline_input":
-                if self.communication == "FALSE":
-                    return
+        if self.log_active:
+            if self.baseline_input:
+                pass
+            elif self.action_validation:
+                pass
+            elif self.smart_input:
+                pass
             else:
                 return
             self.add_log(message, type)
@@ -92,3 +101,6 @@ class LogController:
         
 
 log_controller = LogController()
+
+if __name__ == "__main__":
+    log_controller.log_message("This is a test log message for baseline input.", "baseline_input")

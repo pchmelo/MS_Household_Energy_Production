@@ -1,7 +1,5 @@
 from datetime import datetime
 
-from sim.model.model import HEMSModel
-
 import os
 from dotenv import load_dotenv
 
@@ -11,6 +9,8 @@ agent = os.getenv("AGENT_TYPE")
 
 if __name__ == "__main__":
     if mode == "run_model":
+        from sim.model.model import HEMSModel
+
         model = HEMSModel()
 
         for i in range(model.steps):
@@ -20,8 +20,15 @@ if __name__ == "__main__":
 
         filename = f"{agent}_{datetime.now():%Y%m%d_%H%M%S}.csv"
         results.to_csv(os.path.join("src", "log", "results", agent, filename))
+
     elif mode == "train":
-        # Train the model for the smart agent
-        pass
+        from sim.agent.smart.train import train_sac_agent
+
+        train_sac_agent(
+            total_timesteps=200000,
+            use_gpu=True,
+            n_envs=4
+        )
+
     else:
         print("Invalid MODE in .env file. Please set MODE to 'run_model' or 'train'.")
