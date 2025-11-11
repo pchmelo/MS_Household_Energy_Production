@@ -24,9 +24,21 @@ def update_time(current_time):
         minute -= 60
         hour += 1
     if hour >= 24:
-        hour -= 24 
+        hour -= 24
 
     return (hour, minute)
+
+def format_actions(actions):
+    """Format actions list into a string: 'key: value, key: value, ...'"""
+    if not actions:
+        return "No actions"
+    
+    action_strings = []
+    for action_dict in actions:
+        for key, value in action_dict.items():
+            action_strings.append(f"{key}: {value:.4f}")
+    
+    return ", ".join(action_strings)
 
 class HEMSModel(Model):
     def __init__(self):
@@ -35,7 +47,13 @@ class HEMSModel(Model):
         # Initialize model parameters
         self.steps = get_steps()
         self.battery_capacity = max_capacity
-        self.cur_capacity = 0
+        self.cur_capacity = 0.0
+        self.actions = []
+        self.price = 0.0
+        self.solar_production = 0.0
+        self.wind_production = 0.0
+        self.consumption = 0.0
+        self.old_capacity = 0.0
         self.cur_hour = (0, 0)
 
         # Initialize goal
@@ -48,9 +66,15 @@ class HEMSModel(Model):
         # Data collector setup
         self.datacollector = DataCollector(
             model_reporters={
-                "Balance": lambda m: m.balance,
-                "Current_Capacity": lambda m: m.cur_capacity,
                 "Current_Hour": lambda m: f"{m.cur_hour[0]:02}:{m.cur_hour[1]:02}",
+                "Solar_Production": lambda m: m.solar_production,
+                "Wind_Production": lambda m: m.wind_production,
+                "Consumption": lambda m: m.consumption,
+                "Current_Capacity": lambda m: m.old_capacity,
+                "Price": lambda m: m.price,
+                "Actions": lambda m: format_actions(m.actions),
+                "Balance": lambda m: m.balance,
+                "New_Capacity": lambda m: m.cur_capacity
             }
         )
 

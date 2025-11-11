@@ -27,12 +27,14 @@ class HEMSAgent(Agent):
         while True:
             if agent_type == "smart":
                 actions, new_balance, new_capacity = smart_agent.smart_decision(m.balance, m.cur_capacity, m.cur_hour)
-                if self.validate_actions(actions, m.cur_capacity, m.cur_hour, m.battery_capacity):
+                valid, inputs = self.validate_actions(actions, m.cur_capacity, m.cur_hour, m.battery_capacity)
+                if valid:
                     data_manager.update_time_stamp(m.cur_hour)
                     break
             elif agent_type == "basic":
                 actions, new_balance, new_capacity = baseline_agent.baseline_decision(m.balance, m.cur_capacity, m.cur_hour)
-                if self.validate_actions(actions, m.cur_capacity, m.cur_hour, m.battery_capacity):
+                valid, inputs = self.validate_actions(actions, m.cur_capacity, m.cur_hour, m.battery_capacity)
+                if valid:
                     data_manager.update_time_stamp(m.cur_hour)
                     break
             else:
@@ -40,7 +42,10 @@ class HEMSAgent(Agent):
 
         # Update model state based on decision
         m.balance = new_balance
+        m.old_capacity = m.cur_capacity
         m.cur_capacity = new_capacity
+        m.actions = actions
+        m.price, m.solar_production, m.wind_production, m.consumption = inputs
 
     #TODO Implement Wind Production Configuration
     def validate_actions(self, actions: dict, cur_capacity, cur_hour, battery_max_capacity):
@@ -50,7 +55,7 @@ class HEMSAgent(Agent):
         # Tolerance for floating point comparison
         TOLERANCE = 1e-3
 
-        _, solar_production, wind_production, consumption = data_manager.get_model_data_entry(cur_hour)
+        price, solar_production, wind_production, consumption = data_manager.get_model_data_entry(cur_hour)
         log_controller.log_message(f"Action Validation - Hour: {cur_hour}, Solar Production: {solar_production}, Wind Production: {wind_production}, Consumption: {consumption}", self.log_type)
 
         for action_dict in actions:
@@ -90,4 +95,6 @@ class HEMSAgent(Agent):
         if res:
             log_controller.log_message(f"Action Validation Passed", self.log_type)
 
-        return res
+        inputs = [price, solar_production, wind_production, consumption]
+
+        return res, inputs
