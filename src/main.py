@@ -1,4 +1,3 @@
-from datetime import datetime
 import os
 from dotenv import load_dotenv
 from sim.data.json_result_manager import json_result_manager
@@ -8,10 +7,11 @@ from sim.agent.smart.train import train_sac_agent
 load_dotenv()
 
 mode = os.getenv("MODE")
-agent = os.getenv("AGENT_TYPE")
 
 if __name__ == "__main__":
     if mode == "run_model":
+        """Run Smart Agent"""
+        os.environ["AGENT_TYPE"] = "smart"
 
         model = HEMSModel()
 
@@ -19,8 +19,18 @@ if __name__ == "__main__":
             model.step()
 
         results = model.datacollector.get_model_vars_dataframe()
-        filename = f"{agent}_{datetime.now():%Y%m%d_%H%M%S}.csv"
-        results.to_csv(os.path.join("src", "log", "results", agent, filename))
+        json_result_manager.save_to_json_file(results, agent="smart")
+
+        """Run Basic Agent"""
+        os.environ["AGENT_TYPE"] = "basic"
+
+        model = HEMSModel()
+
+        for i in range(model.steps):
+            model.step()
+
+        results = model.datacollector.get_model_vars_dataframe()
+        json_result_manager.save_to_json_file(results, agent="basic")
 
     elif mode == "train":
 

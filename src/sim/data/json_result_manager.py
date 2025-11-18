@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 
 class JsonResultManager:
-    results_path = os.path.join("results")
+    results_path = os.path.join("src", "sim", "data", "results")
 
     def parse_actions(self, action_string):
         if action_string == "No actions" or not action_string:
@@ -42,12 +42,12 @@ class JsonResultManager:
 
         return json_res
 
-    def save_to_json_file(self, results_df, agent="smart_agent"):
+    def save_to_json_file(self, results_df, agent="smart"):
         filename_json = f"{agent}_{datetime.now():%Y%m%d_%H%M%S}.json"
-        filepath_json = os.path.join(self.results_path, agent, filename_json)
+        filepath_json = os.path.join(self.results_path, "json", agent, filename_json)
 
         filename_csv = f"{agent}_{datetime.now():%Y%m%d_%H%M%S}.csv"
-        filepath_csv = os.path.join(self.results_path, agent, filename_csv)
+        filepath_csv = os.path.join(self.results_path, "csv", agent, filename_csv)
 
         results_df.to_csv(filepath_csv)
         json_data = self.dataframe_to_json(results_df)
