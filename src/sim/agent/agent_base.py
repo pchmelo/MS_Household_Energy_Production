@@ -11,34 +11,34 @@ from sim.data.data_manager import data_manager
 from log.log_controller import log_controller
 
 load_dotenv()
-agent_type = os.getenv("AGENT_TYPE", "smart")
 
 class HEMSAgent(Agent):
 
     log_type = "action_validation"
 
-    def __init__(self, model):
+    def __init__(self, model, agent_type="smart"):
         super().__init__(model)
+        self.agent_type = agent_type
 
     def step(self):
         m = self.model
 
         # Make a decision based on the agent type and validate it
         while True:
-            if agent_type == "smart":
+            if self.agent_type == "smart":
                 actions, new_balance, new_capacity = smart_agent.smart_decision(m.balance, m.cur_capacity, m.cur_hour)
                 valid, inputs = self.validate_actions(actions, m.cur_capacity, m.cur_hour, m.battery_capacity)
                 if valid:
                     data_manager.update_time_stamp(m.cur_hour)
                     break
-            elif agent_type == "basic":
+            elif self.agent_type == "basic":
                 actions, new_balance, new_capacity = baseline_agent.baseline_decision(m.balance, m.cur_capacity, m.cur_hour)
                 valid, inputs = self.validate_actions(actions, m.cur_capacity, m.cur_hour, m.battery_capacity)
                 if valid:
                     data_manager.update_time_stamp(m.cur_hour)
                     break
             else:
-                raise ValueError(f"Unknown agent type: {agent_type}")
+                raise ValueError(f"Unknown agent type: {self.agent_type}")
 
         # Update model state based on decision
         m.balance = new_balance

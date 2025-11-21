@@ -41,7 +41,7 @@ def format_actions(actions):
     return ", ".join(action_strings)
 
 class HEMSModel(Model):
-    def __init__(self):
+    def __init__(self, agent_type="smart"):
         super().__init__()
 
         # Initialize model parameters
@@ -60,7 +60,7 @@ class HEMSModel(Model):
         self.balance = 0.0
 
         # Create agent
-        agent = HEMSAgent(self)
+        agent = HEMSAgent(self, agent_type)
         self.agents.add(agent)
 
         # Data collector setup

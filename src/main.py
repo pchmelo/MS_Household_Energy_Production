@@ -11,26 +11,22 @@ mode = os.getenv("MODE")
 if __name__ == "__main__":
     if mode == "run_model":
         """Run Smart Agent"""
-        os.environ["AGENT_TYPE"] = "smart"
-
-        model = HEMSModel()
+        model = HEMSModel(agent_type="smart")
 
         for i in range(model.steps):
             model.step()
 
         results = model.datacollector.get_model_vars_dataframe()
-        json_result_manager.save_to_json_file(results, agent="smart")
+        json_result_manager.save_to_json_file(results, agent_type="smart")
 
         """Run Basic Agent"""
-        os.environ["AGENT_TYPE"] = "basic"
-
-        model = HEMSModel()
+        model = HEMSModel(agent_type="basic")
 
         for i in range(model.steps):
             model.step()
 
         results = model.datacollector.get_model_vars_dataframe()
-        json_result_manager.save_to_json_file(results, agent="basic")
+        json_result_manager.save_to_json_file(results, agent_type="basic")
 
     elif mode == "train":
 

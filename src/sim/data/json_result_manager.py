@@ -4,6 +4,7 @@ from datetime import datetime
 
 class JsonResultManager:
     results_path = os.path.join("src", "sim", "data", "results")
+    final_json_data = {}
 
     def parse_actions(self, action_string):
         if action_string == "No actions" or not action_string:
@@ -40,15 +41,18 @@ class JsonResultManager:
                 }
             }
 
+        json_res[self.agent_type] = json_res
+
         return json_res
 
-    def save_to_json_file(self, results_df, agent="smart"):
-        filename_json = f"{agent}_{datetime.now():%Y%m%d_%H%M%S}.json"
-        filepath_json = os.path.join(self.results_path, "json", agent, filename_json)
+    def save_to_json_file(self, results_df, agent_type="smart"):
+        self.agent_type = agent_type
 
-        filename_csv = f"{agent}_{datetime.now():%Y%m%d_%H%M%S}.csv"
-        filepath_csv = os.path.join(self.results_path, "csv", agent, filename_csv)
+        filename_json = f"{agent_type}_{datetime.now():%Y%m%d_%H%M%S}.json"
+        filepath_json = os.path.join(self.results_path, "json", agent_type, filename_json)
 
+        filename_csv = f"{agent_type}_{datetime.now():%Y%m%d_%H%M%S}.csv"
+        filepath_csv = os.path.join(self.results_path, "csv", agent_type, filename_csv)
         results_df.to_csv(filepath_csv)
         json_data = self.dataframe_to_json(results_df)
         
@@ -56,6 +60,14 @@ class JsonResultManager:
             json.dump(json_data, f, indent=4, ensure_ascii=False)
         
         return True
+    
+    def calculate_final_results(self):
+        if self.final_json_data["smart"] and self.final_json_data["basic"]:
+            res = {}
+            last_key = list(self.final_json_data["smart"].keys())[-1]
+            print(f"Last key: {last_key}")
+            return True
+        return False
 
 
 json_result_manager = JsonResultManager()
