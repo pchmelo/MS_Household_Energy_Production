@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import time
 from datetime import datetime
 import pandas as pd
-#from sim.data.data_manager import data_manager
+from sim.data.data_manager import data_manager
 st.set_page_config(layout="wide")
 
 def create_log(log : str):
