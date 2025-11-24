@@ -1,9 +1,11 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import time
-from datetime import datetime
+from datetime import datetime,timedelta
 import pandas as pd
+import numpy as np
 from sim.data.data_manager import data_manager
+import os
 st.set_page_config(layout="wide")
 
 def create_log(log : str):
@@ -33,26 +35,79 @@ with cola:
         if api_clicked:
             st.session_state.show_calendar = True  # remember to show calendar
 
+@st.dialog("Confirm Data Collection",width='large')
+def confirm_collection_modal(date_str):
+    data_dir = os.path.join(r"sim/data/datafiles", date_str)
+
+    # 2. Check if directory exists
+    if os.path.exists(data_dir):
+        datasets = os.listdir(data_dir)
+
+        if datasets:
+            # 2. Create ALL tabs at once (Streamlit requirement)
+            tabs = st.tabs(datasets)
+
+        for tab, filename in zip(tabs, datasets):
+            with tab:
+                file_path = os.path.join(data_dir, filename)
+                df = pd.read_csv(file_path)
+                
+                st.caption(f"Source: '{filename}'")
+
+                df["Time (Hour)"] = pd.to_datetime(df["Time (Hour)"])
+
+                if filename == "consumption.csv":
+                    st.line_chart(df,x="Time (Hour)",y="Consumption (kW)")
+
+                elif filename == "market_prices.csv":
+                    st.line_chart(df,x="Time (Hour)",y="Price (€/kWh)")
+
+                elif filename == "wind_production.csv" or filename == "solar_production.csv":
+                    st.line_chart(df,x="Time (Hour)",y="Production (kW)")
+    
+    
+    st.write(f"Is this data correct?")
+
+    col1, col2, _ = st.columns([1, 1, 8])
+    
+    with col1:
+        if st.button("Yes", type="primary",use_container_width=True):
+            st.session_state.show_calendar = False
+            calendar_placeholder.empty()
+            st.rerun()
+
+    with col2:
+        if st.button("No",use_container_width=True):
+            calendar_placeholder.empty()
+            st.rerun()
+
 calendar_placeholder = st.empty()
 
 
 #Calender to select date for REN API
 if st.session_state.show_calendar:
     with calendar_placeholder.container():
-        default_date = datetime.now().strftime("%Y-%m-%d")
-        selected_date = st.date_input("Select a date", value=default_date,key="api_date").strftime("%Y-%m-%d")
+        default_date = datetime.now() + timedelta(days=1)
+        default_date = default_date.strftime("%Y-%m-%d")
 
-        confirm_button = st.button("Confirm date")
-        cancel_button = st.button("Cancel")
+        selected_date = st.date_input("Select a date", value=default_date,max_value=default_date,key="api_date").strftime("%Y-%m-%d")
+
+
+        col1, col2, _ = st.columns([1, 1, 8])
+
+        with col1:
+            confirm_button = st.button("Confirm date",type="primary",use_container_width=True)
+        
+        with col2:
+            cancel_button = st.button("Cancel",use_container_width=True)
 
         if cancel_button:
             st.session_state.show_calendar = False
             calendar_placeholder.empty()
 
         if confirm_button:
-            #data_manager.start_data_collection(selected_date)
-            st.session_state.show_calendar = False
-            calendar_placeholder.empty()
+            if data_manager.start_data_collection(selected_date):
+                confirm_collection_modal(selected_date)
 
 # Button functionality
 if insert_clicked:
