@@ -5,35 +5,12 @@ from datetime import datetime,timedelta
 import pandas as pd
 import numpy as np
 from sim.data.data_manager import data_manager
+import json
 import os
 st.set_page_config(layout="wide")
 
 def create_log(log : str):
     return f'<p class="run">{log}</p>'
-
-if "show_calendar" not in st.session_state:
-    st.session_state.show_calendar = False
-
-if "inserting_data" not in st.session_state:
-    st.session_state.inserting_data = False
-
-# Create log state in app
-if "logs" not in st.session_state:
-    st.session_state.logs = [create_log(str(i)) for i in range(5)]
-
-if "data" not in st.session_state:
-    st.session_state.data = None
-
-cola, colb, colc, cold, cole = st.columns([1, 1, 1, 1, 1])
-with cola:
-    # make inner columns equal width but spacious
-    ca, cb = st.columns([1, 1])
-    with ca:
-        insert_clicked = st.button("Insert Data", use_container_width=True)
-    with cb:
-        api_clicked = st.button("Use API", use_container_width=True) 
-        if api_clicked:
-            st.session_state.show_calendar = True  # remember to show calendar
 
 @st.dialog("Confirm Data Collection",width='large')
 def confirm_collection_modal(date_str):
@@ -73,76 +50,164 @@ def confirm_collection_modal(date_str):
     with col1:
         if st.button("Yes", type="primary",use_container_width=True):
             st.session_state.show_calendar = False
-            calendar_placeholder.empty()
+            st.session_state.selected_date = date_str
+            st.session_state.data_confirmed = True
             st.rerun()
 
     with col2:
         if st.button("No",use_container_width=True):
-            calendar_placeholder.empty()
+            st.session_state.show_calendar = False
+            st.session_state.data_confirmed = True
             st.rerun()
 
-calendar_placeholder = st.empty()
+if "show_calendar" not in st.session_state:
+    st.session_state.show_calendar = False
 
+if "data_confirmed" not in st.session_state:
+    st.session_state.data_confirmed = False
 
-#Calender to select date for REN API
-if st.session_state.show_calendar:
-    with calendar_placeholder.container():
-        default_date = datetime.now() + timedelta(days=1)
-        default_date = default_date.strftime("%Y-%m-%d")
+if "inserting_data" not in st.session_state:
+    st.session_state.inserting_data = False
 
-        selected_date = st.date_input("Select a date", value=default_date,max_value=default_date,key="api_date").strftime("%Y-%m-%d")
+if "selected_date" not in st.session_state:
+    st.session_state.selected_date = None
 
+if "interval" not in st.session_state:
+    st.session_state.interval = None
 
-        col1, col2, _ = st.columns([1, 1, 8])
+if "max_capacity" not in st.session_state:
+    st.session_state.max_capacity = None
 
-        with col1:
-            confirm_button = st.button("Confirm date",type="primary",use_container_width=True)
+if "tariff" not in st.session_state:
+    st.session_state.tariff = None
+
+if "complex_mode" not in st.session_state:
+    st.session_state.complex_mode = False
+
+if "logs" not in st.session_state:
+    st.session_state.logs = [create_log(str(i)) for i in range(5)]
+
+if "consumption_data" not in st.session_state:
+    st.session_state.consumption_data = None
+
+if "market_data" not in st.session_state:
+    st.session_state.market_data = None
+
+if "solar_data" not in st.session_state:
+    st.session_state.solar_data = None
+
+if "wind_data" not in st.session_state:
+    st.session_state.wind_data = None
+
+with st.sidebar:
+    # AGENT_TYPE toggle
+    agent_type = st.toggle("Toggle complex mode", value=True)
+    # INTERVAL slider
+    interval = st.slider("INTERVAL (minutes)", min_value=0, max_value=60, value=0, step=15)
+    # MAX_CAPACITY
+    max_capacity = st.number_input("Max Battery Capacity (kWh)", min_value=0, max_value=1000,value=10)
+    # TARIFF
+    tariff = st.number_input("TARIFF (Relation between exportation and importation tariffs)", min_value=0.0, max_value=1.0,value=0.75, step=0.01)
+
+    cole, colf,_ = st.columns([5,5,8])
+    with cole:
+        confirm_config = st.button("Confirm",type="primary",use_container_width=True)
+        insert_csv = st.button("Insert CSV",use_container_width=True)
+        if st.session_state.data != None:
+            remove_csv = st.button("Remove CSV",use_container_width=True)
         
-        with col2:
-            cancel_button = st.button("Cancel",use_container_width=True)
+            if remove_csv:
+                st.session_state.consumption_data = None
+                st.session_state.market_data = None
+                st.session_state.solar_data = None
+                st.session_state.wind_data = None
+                st.rerun()
 
-        if cancel_button:
-            st.session_state.show_calendar = False
-            calendar_placeholder.empty()
+    with colf:
+        cancel_config = st.button("Cancel",use_container_width=True,key="cancel_config")
+        use_api = st.button("Use api",use_container_width=True)
+        if st.session_state.selected_date != None:
+            remove_api = st.button("Remove API data",use_container_width=True)
 
-        if confirm_button:
-            if data_manager.start_data_collection(selected_date):
-                confirm_collection_modal(selected_date)
+            if remove_api:
+                st.session_state.selected_date = None
+                st.rerun()
 
-# Button functionality
-if insert_clicked:
-    st.session_state.inserting_data = True
-    uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"], key="uploader")
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file)
-        st.session_state.data = df
-        st.dataframe(df)
-        st.success("File uploaded successfully!")
+    if cancel_config:
+        st.session_state.inserting_data = False
+        st.rerun()
 
-config_placeholder = st.empty()
+    if confirm_config:
+        st.session_state.inserting_data = False
+        st.session_state.complex_mode = agent_type
+        st.session_state.interval = interval
+        st.session_state.max_capacity = max_capacity
+        st.session_state.tariff = tariff
+        st.rerun()
 
-if st.session_state.inserting_data:
-    with config_placeholder.container():
-        # AGENT_TYPE toggle
-        agent_type = st.toggle("Toggle complex mode", value=True)
-        # INTERVAL slider
-        interval = st.slider("INTERVAL", min_value=0.0, max_value=1.0, value=0.0, step=0.15)
-        # MAX_CAPACITY
-        max_capacity = st.number_input("MAX_CAPACITY", min_value=0, value=10**10)
-        # TARIFF
-        tariff = st.number_input("TARIFF", min_value=0.0, max_value=1.0,value=0.75, step=0.01)
+    if insert_csv:
+        uploaded_file_1 = st.file_uploader("Insert consumption data", type=["csv"], key="consumption_uploader")
+        if uploaded_file_1:
+            df = pd.read_csv(uploaded_file_1)
+            st.session_state.consumption_data = df
+            st.success("File uploaded successfully!")
+            st.rerun()
+        
+        uploaded_file_2 = st.file_uploader("Insert market price data", type=["csv"], key="market_uploader")
+        if uploaded_file_2:
+            df = pd.read_csv(uploaded_file_2)
+            st.session_state.market_data = df
+            st.success("File uploaded successfully!")
+            st.rerun()
+        
+        uploaded_file_3 = st.file_uploader("Insert solar production data", type=["csv"], key="solar_uploader")
+        if uploaded_file_3:
+            df = pd.read_csv(uploaded_file_3)
+            st.session_state.solar_data = df
+            st.success("File uploaded successfully!")
+            st.rerun()
+        
+        uploaded_file_4 = st.file_uploader("Insert wind production data", type=["csv"], key="wind_uploader")
+        if uploaded_file_4:
+            df = pd.read_csv(uploaded_file_4)
+            st.session_state.wind_data = df
+            st.success("File uploaded successfully!")
+            st.rerun()
 
-        confirm_config = st.button("Confirm config")
-        cancel_config = st.button("Cancel")
+    if use_api:
+        st.session_state.show_calendar = True
 
-        if cancel_config:
-            st.session_state.inserting_data = False
-            config_placeholder.empty()
+    calendar_placeholder = st.empty()
 
-        if confirm_config:
-            st.session_state.inserting_data = False
-            config_placeholder.empty()
+    if st.session_state.show_calendar:
+        #Calender to select date for REN API
+        with calendar_placeholder.container():
+            default_date = datetime.now() - timedelta(days=1)
+            default_date =  default_date.strftime("%Y-%m-%d")
 
+            col3, _ = st.columns([2,2])
+
+            with col3:
+                selected_date = st.date_input("Select a date", value=default_date,max_value=default_date,key="api_date").strftime("%Y-%m-%d")
+
+            col1, col2 = st.columns([1, 1])
+
+            with col1:
+                confirm_button = st.button("Confirm date",type="primary",use_container_width=True)
+            
+            with col2:
+                cancel_button = st.button("Cancel",use_container_width=True)
+
+            if cancel_button:
+                calendar_placeholder.empty()
+
+            if confirm_button:
+                if data_manager.start_data_collection(selected_date):
+                    confirm_collection_modal(selected_date)
+
+if st.session_state.data_confirmed:
+    st.session_state.data_confirmed = False
+    calendar_placeholder.empty()
 
 terminal_style = """
 <style>
@@ -280,8 +345,23 @@ with col3:
     with c3:
         run_simulation = st.button("Run Simulation", use_container_width=True)
 
-# --- Simulate appending logs dynamically ---
 if run_simulation:
+    st.rerun()
+
+    export_data = {
+        "selected_date": st.session_state.get("selected_date"),
+        "interval": st.session_state.get("interval"),
+        "max_capacity": st.session_state.get("max_capacity"),
+        "tariff": st.session_state.get("tariff"),
+        "complex_mode": st.session_state.get("complex_mode"),
+        "consumption_data": st.session_state.consumption_data.to_json(orient="columns"),
+        "market_data":st.session_state.market_data.to_json(orient="columns"),
+        "solar_data":st.session_state.solar_data.to_json(orient="columns"),
+        "wind_data":st.session_state.wind_data.to_json(orient="columns")
+    }
+
+    json_data = json.dumps(export_data, indent=4)
+
     for i in range(5):
         st.session_state.logs.append(create_log(f"Step {i+1} complete — {datetime.now().strftime("%H:%M:%S")}"))
         logs_html = "".join(st.session_state.logs)
