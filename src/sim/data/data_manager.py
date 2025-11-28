@@ -24,8 +24,12 @@ class DataManager:
         self.smooth_window = smooth_window
         self.start_data_collection(date)
 
+        self.use_api = True
+
         
     def start_data_collection(self, date: str):
+        self.use_api = True
+
         self.date = date
         self.last_time_stamp = (0, 0)
 
@@ -48,7 +52,7 @@ class DataManager:
         if time_stamp is None:
             raise ValueError("Time stamp must be provided")
         
-        if date is not None and (not hasattr(self, 'date') or self.date != date):
+        if (date is not None and (not hasattr(self, 'date') or self.date != date)) and self.use_api:
             self.start_data_collection(date)
 
         hour, minute = time_stamp
@@ -316,6 +320,14 @@ class DataManager:
             
             return True, res
         return False, None
+    
+    def set_dataframes(self, df_price, df_solar, df_wind, df_consumption):
+        self.use_api = False
+
+        self.df_price_data = df_price
+        self.df_solar_production = df_solar
+        self.df_wind_production = df_wind
+        self.df_consumption = df_consumption
 
 
 data_manager = DataManager()

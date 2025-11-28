@@ -16,9 +16,27 @@ class HEMSAgent(Agent):
 
     log_type = "action_validation"
 
-    def __init__(self, model, agent_type="smart"):
+    def __init__(self, model, agent_type="smart", simulation_configs=None):
         super().__init__(model)
         self.agent_type = agent_type
+
+        if simulation_configs:
+            if simulation_configs.complex_mode:
+                # Implement complex mode configurations if needed
+                pass
+            else:
+                if simulation_configs.selected_date:
+                    # Send date to data manager to start data collection
+                    data_manager.start_data_collection(simulation_configs.selected_date)
+                else:
+                    data_manager.set_dataframes(simulation_configs.df_price, 
+                                                simulation_configs.df_solar_production, 
+                                                simulation_configs.df_wind_production, 
+                                                simulation_configs.df_consumption)
+                    if agent_type == "smart":
+                        smart_agent.tariff = simulation_configs.tariff
+                    else:
+                        baseline_agent.tariff = simulation_configs.tariff
 
     def step(self):
         m = self.model
