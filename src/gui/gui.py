@@ -349,16 +349,17 @@ if run_simulation:
     st.rerun()
 
     export_data = {
-        "selected_date": st.session_state.get("selected_date"),
-        "interval": st.session_state.get("interval"),
-        "max_capacity": st.session_state.get("max_capacity"),
-        "tariff": st.session_state.get("tariff"),
-        "complex_mode": st.session_state.get("complex_mode"),
-        "consumption_data": st.session_state.consumption_data.to_json(orient="columns"),
-        "market_data":st.session_state.market_data.to_json(orient="columns"),
-        "solar_data":st.session_state.solar_data.to_json(orient="columns"),
-        "wind_data":st.session_state.wind_data.to_json(orient="columns")
-    }
+    "selected_date": st.session_state.get("selected_date"),
+    "interval": st.session_state.get("interval"),
+    "max_capacity": st.session_state.get("max_capacity"),
+    "tariff": st.session_state.get("tariff"),
+    "complex_mode": st.session_state.get("complex_mode"),
+    "consumption_data": st.session_state.consumption_data if st.session_state.get("selected_date") else None,
+    "market_data":st.session_state.market_data if st.session_state.get("selected_date") else None,
+    "solar_data":st.session_state.solar_data if st.session_state.get("selected_date") else None,
+    "wind_data":st.session_state.wind_data if st.session_state.get("selected_date") else None,
+    "used_api":True if st.session_state.get("selected_date") else False
+}
 
     json_data = json.dumps(export_data, indent=4)
 
