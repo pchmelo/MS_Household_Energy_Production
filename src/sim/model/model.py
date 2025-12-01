@@ -1,52 +1,23 @@
 import os
 from dotenv import load_dotenv
-
 from mesa import Model
 from mesa.datacollection import DataCollector
-
 from sim.agent.agent_base import HEMSAgent
 
 load_dotenv()
-interval_str = os.getenv("INTERVAL", "1,0")
-hour_interval, minute_interval = map(int, interval_str.split(","))
-max_capacity = int(os.getenv("MAX_CAPACITY"))
-
-def get_steps():
-    return 24 * 60 // (hour_interval * 60 + minute_interval)
-
-def update_time(current_time):
-    hour, minute = current_time
-
-    minute += minute_interval
-    hour += hour_interval
-
-    if minute >= 60:
-        minute -= 60
-        hour += 1
-    if hour >= 24:
-        hour -= 24
-
-    return (hour, minute)
-
-def format_actions(actions):
-    """Format actions list into a string: 'key: value, key: value, ...'"""
-    if not actions:
-        return "No actions"
-    
-    action_strings = []
-    for action_dict in actions:
-        for key, value in action_dict.items():
-            action_strings.append(f"{key}: {value:.4f}")
-    
-    return ", ".join(action_strings)
 
 class HEMSModel(Model):
-    def __init__(self):
+
+    def __init__(self, agent_type="smart"):
         super().__init__()
+        self.agent_type = agent_type
 
         # Initialize model parameters
-        self.steps = get_steps()
-        self.battery_capacity = max_capacity
+        self.battery_capacity = int(os.getenv("MAX_CAPACITY"))
+        self.interval_str = os.getenv("INTERVAL", "1,0")
+        self.hour_interval, self.minute_interval = map(int, self.interval_str.split(","))
+
+        self.steps = self.get_steps()
         self.cur_capacity = 0.0
         self.actions = []
         self.price = 0.0
@@ -60,7 +31,7 @@ class HEMSModel(Model):
         self.balance = 0.0
 
         # Create agent
-        agent = HEMSAgent(self)
+        agent = HEMSAgent(self, agent_type)
         self.agents.add(agent)
 
         # Data collector setup
@@ -72,13 +43,60 @@ class HEMSModel(Model):
                 "Consumption": lambda m: m.consumption,
                 "Current_Capacity": lambda m: m.old_capacity,
                 "Price": lambda m: m.price,
-                "Actions": lambda m: format_actions(m.actions),
+                "Actions": lambda m: m.format_actions(m.actions),
                 "Balance": lambda m: m.balance,
                 "New_Capacity": lambda m: m.cur_capacity
             }
         )
 
+    def setup_configs(self, simulation_configs):
+        self.simulation_configs = simulation_configs
+
+       
+        self.battery_capacity = simulation_configs.battery_max_capacity
+        self.interval_str = simulation_configs.interval
+        
+        if simulation_configs.interval == 60:
+            self.hour_interval = 1
+            self.minute_interval = 0
+        else:
+            self.hour_interval = 0
+            self.minute_interval = simulation_configs.interval
+            
+        agent = HEMSAgent(self, self.agent_type, simulation_configs)
+        self.agents.add(agent)
+
+
     def step(self):
-        self.cur_hour = update_time(self.cur_hour)
+        self.cur_hour = self.update_time(self.cur_hour)
         self.agents.do("step")
         self.datacollector.collect(self)
+
+    def get_steps(self):
+        return 24 * 60 // (self.hour_interval * 60 + self.minute_interval)
+
+    def update_time(self, current_time):
+        hour, minute = current_time
+
+        minute += self.minute_interval
+        hour += self.hour_interval
+
+        if minute >= 60:
+            minute -= 60
+            hour += 1
+        if hour >= 24:
+            hour -= 24
+
+        return (hour, minute)
+
+    def format_actions(actions):
+        """Format actions list into a string: 'key: value, key: value, ...'"""
+        if not actions:
+            return "No actions"
+        
+        action_strings = []
+        for action_dict in actions:
+            for key, value in action_dict.items():
+                action_strings.append(f"{key}: {value:.4f}")
+        
+        return ", ".join(action_strings)
