@@ -7,6 +7,11 @@ import numpy as np
 from sim.data.data_manager import data_manager
 import json
 import os
+#from sim.simulation_manager import SimulationManager
+import sys
+import os
+from pathlib import Path
+
 st.set_page_config(layout="wide")
 
 def create_log(log : str):
@@ -40,8 +45,7 @@ def confirm_collection_modal(date_str):
                     st.line_chart(df,x="Time (Hour)",y="Price (€/kWh)")
 
                 elif filename == "wind_production.csv" or filename == "solar_production.csv":
-                    st.line_chart(df,x="Time (Hour)",y="Production (kW)")
-    
+                    st.line_chart(df,x="Time (Hour)",y="Production (kW)")  
     
     st.write(f"Is this data correct?")
 
@@ -60,8 +64,73 @@ def confirm_collection_modal(date_str):
             st.session_state.data_confirmed = True
             st.rerun()
 
+@st.dialog("Simulation Overview",width='large')
+def display_simulation_overview(json_path : str = None):
+    tabs = st.tabs(["Smart","Basic"])
+
+    rows = []
+    for agent_type in ['smart', 'basic']:
+        agent_data = json_data.get(agent_type, {})
+        
+        for timestamp, details in agent_data.items():
+            row = {
+                'Agent_Type': agent_type,
+                'Time': timestamp
+            }
+            
+            if 'input_data' in details:
+                row.update(details['input_data'])
+
+            if 'output_data' in details:
+                row.update(details['output_data'])
+                
+            if 'Actions' in details:
+                for action in details['Actions']:
+                    row.update(action)
+                    
+            rows.append(row)
+
+    # Create the main DataFrame
+    df_simulation = pd.DataFrame(rows)
+    df_simulation["Time"] = pd.to_datetime(df_simulation["Time"])
+
+    with tabs[0]:
+        df_smart = df_simulation[df_simulation["Agent_Type"] == "smart"]
+        st.caption("Smart Agent Simulation Overview")
+
+        st.line_chart(df_smart,x="Time",y="Solar_Production")
+
+        st.line_chart(df_smart,x="Time",y="Wind_Production")
+
+        st.line_chart(df_smart,x="Time",y="Consumption")
+
+        st.line_chart(df_smart,x="Time",y="New_Capacity")
+
+        st.line_chart(df_smart,x="Time",y="Current_Capacity")
+
+        st.line_chart(df_smart,x="Time",y="Price")
+    
+    with tabs[1]:
+        df_basic = df_simulation[df_simulation["Agent_Type"] == "basic"]
+        st.caption("Basic Agent Simulation Overview")
+
+        st.line_chart(df_basic,x="Time",y="Solar_Production")
+
+        st.line_chart(df_basic,x="Time",y="Wind_Production")
+
+        st.line_chart(df_basic,x="Time",y="Consumption")
+
+        st.line_chart(df_basic,x="Time",y="New_Capacity")
+
+        st.line_chart(df_basic,x="Time",y="Current_Capacity")
+
+        st.line_chart(df_basic,x="Time",y="Price")
+
 if "show_calendar" not in st.session_state:
     st.session_state.show_calendar = False
+
+if "simulation_run" not in st.session_state:
+    st.session_state.simulation_run = False
 
 if "data_confirmed" not in st.session_state:
     st.session_state.data_confirmed = False
@@ -99,6 +168,12 @@ if "solar_data" not in st.session_state:
 if "wind_data" not in st.session_state:
     st.session_state.wind_data = None
 
+if "index" not in st.session_state:
+    st.session_state.index = 0
+
+if "index_basic" not in st.session_state:
+    st.session_state.index_basic = 0
+
 with st.sidebar:
     # AGENT_TYPE toggle
     agent_type = st.toggle("Toggle complex mode", value=True)
@@ -107,13 +182,15 @@ with st.sidebar:
     # MAX_CAPACITY
     max_capacity = st.number_input("Max Battery Capacity (kWh)", min_value=0, max_value=1000,value=10)
     # TARIFF
-    tariff = st.number_input("TARIFF (Relation between exportation and importation tariffs)", min_value=0.0, max_value=1.0,value=0.75, step=0.01)
+    tariff = st.number_input("TARIFF", min_value=0.0, max_value=1.0,value=0.75, step=0.01,
+                             help="The second parameter is the relationship between import and export tariffs. For example, if tariff = 75%, this means that the selling price is 75% of the purchase price")
 
     cole, colf,_ = st.columns([5,5,8])
     with cole:
         confirm_config = st.button("Confirm",type="primary",use_container_width=True)
         insert_csv = st.button("Insert CSV",use_container_width=True)
-        if st.session_state.data != None:
+
+        if st.session_state.consumption_data != None and st.session_state.market_data != None and st.session_state.solar_data != None and st.session_state.wind_data != None:
             remove_csv = st.button("Remove CSV",use_container_width=True)
         
             if remove_csv:
@@ -126,6 +203,7 @@ with st.sidebar:
     with colf:
         cancel_config = st.button("Cancel",use_container_width=True,key="cancel_config")
         use_api = st.button("Use api",use_container_width=True)
+
         if st.session_state.selected_date != None:
             remove_api = st.button("Remove API data",use_container_width=True)
 
@@ -146,6 +224,8 @@ with st.sidebar:
         st.rerun()
 
     if insert_csv:
+        st.session_state.show_calendar = False
+
         uploaded_file_1 = st.file_uploader("Insert consumption data", type=["csv"], key="consumption_uploader")
         if uploaded_file_1:
             df = pd.read_csv(uploaded_file_1)
@@ -313,55 +393,163 @@ terminal_placeholder.html(
     </div>
     """)
 
-# --- Text window above buttons ---
-text_window = st.container()  # This will hold the text display
+result_tabs = st.tabs(["Smart","Basic"])
+with result_tabs[0]:
+    col1, col2, col3= st.columns([3, 3, 3])
 
-with text_window:
-    # Create a scrollable box using st.markdown with styling
-    st.markdown(
-        """
-        <div style='
-            height: 400px;
-            background-color: #1e1e1e;
-            color: #d4d4d4;
-            font-family: Consolas, monospace;
-            padding: 10px;
-            overflow-y: auto;
-            border-radius: 5px;
-            border: 1px solid #333;
-        '>
-        """ + "<br>".join(st.session_state.logs) + "</div>",
-        unsafe_allow_html=True
-    )
+    text_window_1 = st.empty()
+    text_window_4 = st.empty()
+    with col1:
+        st.header("Input Data")
+        text_window_1 = st.html(
+                """
+                <div style='
+                    height: 400px;
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    font-family: Consolas, monospace;
+                    padding: 10px;
+                    overflow-y: auto;
+                    border-radius: 5px;
+                    border: 1px solid #333;
+                '>
+                """ + "<br>".join(st.session_state.logs) + "</div>"
+            )
 
-col1, col2, col3, col4, col5 = st.columns([1, 1, 4, 1, 1])
-with col3:
-    # make inner columns equal width but spacious
-    c1, c2, c3 = st.columns([1, 1, 1])
-    with c1:
-        forward_click = st.button("Fordward Step", use_container_width=True)
-    with c2:
-        backwards_click = st.button("Backward Step", use_container_width=True)
-    with c3:
-        run_simulation = st.button("Run Simulation", use_container_width=True)
+    text_window_2 = st.empty()
+    text_window_5 = st.empty()
+    with col2:
+        st.header("Action")
+        text_window_2 = st.html(
+                """
+                <div style='
+                    height: 400px;
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    font-family: Consolas, monospace;
+                    padding: 10px;
+                    overflow-y: auto;
+                    border-radius: 5px;
+                    border: 1px solid #333;
+                '>
+                """ + "<br>".join(st.session_state.logs) + "</div>"
+            )
+
+    text_window_3 = st.empty()
+    text_window_6 = st.empty()
+    with col3:
+        st.header("Output Data")
+        text_window_3 = st.html(
+                """
+                <div style='
+                    height: 400px;
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    font-family: Consolas, monospace;
+                    padding: 10px;
+                    overflow-y: auto;
+                    border-radius: 5px;
+                    border: 1px solid #333;
+                '>
+                """ + "<br>".join(st.session_state.logs) + "</div>"
+            )
+    with col2:
+        # make inner columns equal width but spacious
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c3:
+            forward_click = st.button("Fordward Step", use_container_width=True)
+        with c1:
+            backwards_click = st.button("Backward Step", use_container_width=True)
+        with c2:
+            run_simulation = st.button("Run Simulation",type="primary", use_container_width=True)
+
+with result_tabs[1]:
+    col1, col2, col3= st.columns([3, 3, 3])
+
+    text_window_4 = st.empty()
+    with col1:
+        st.header("Input Data")
+        text_window_4 = st.html(
+                """
+                <div style='
+                    height: 400px;
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    font-family: Consolas, monospace;
+                    padding: 10px;
+                    overflow-y: auto;
+                    border-radius: 5px;
+                    border: 1px solid #333;
+                '>
+                """ + "<br>".join(st.session_state.logs) + "</div>"
+            )
+
+    text_window_5 = st.empty()
+    with col2:
+        st.header("Action")
+        text_window_5 = st.html(
+                """
+                <div style='
+                    height: 400px;
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    font-family: Consolas, monospace;
+                    padding: 10px;
+                    overflow-y: auto;
+                    border-radius: 5px;
+                    border: 1px solid #333;
+                '>
+                """ + "<br>".join(st.session_state.logs) + "</div>"
+            )
+
+    text_window_6 = st.empty()
+    with col3:
+        st.header("Output Data")
+        text_window_6 = st.html(
+                """
+                <div style='
+                    height: 400px;
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    font-family: Consolas, monospace;
+                    padding: 10px;
+                    overflow-y: auto;
+                    border-radius: 5px;
+                    border: 1px solid #333;
+                '>
+                """ + "<br>".join(st.session_state.logs) + "</div>"
+            )
+    with col2:
+        # make inner columns equal width but spacious
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c3:
+            forward_click_1 = st.button("Fordward Step", key="FS1",use_container_width=True)
+        with c1:
+            backwards_click_1 = st.button("Backward Step",key="BS1", use_container_width=True)
 
 if run_simulation:
-    st.rerun()
-
-    export_data = {
+    config = {
     "selected_date": st.session_state.get("selected_date"),
     "interval": st.session_state.get("interval"),
     "max_capacity": st.session_state.get("max_capacity"),
     "tariff": st.session_state.get("tariff"),
     "complex_mode": st.session_state.get("complex_mode"),
-    "consumption_data": st.session_state.consumption_data if st.session_state.get("selected_date") else None,
-    "market_data":st.session_state.market_data if st.session_state.get("selected_date") else None,
-    "solar_data":st.session_state.solar_data if st.session_state.get("selected_date") else None,
-    "wind_data":st.session_state.wind_data if st.session_state.get("selected_date") else None,
     "used_api":True if st.session_state.get("selected_date") else False
-}
+    }
 
-    json_data = json.dumps(export_data, indent=4)
+    json_data = json.dumps(config, indent=4)
+
+    #sim_manager = SimulationManager()
+
+    """SimulationManager.start_smulation(config=config,
+                                      df_solar_production=st.session_state.solar_data,
+                                      df_wind_production=st.session_state.wind_data,
+                                      df_consumption=st.session_state.consumption_data,
+                                      df_price=st.session_state.market_data)"""
+    
+    st.session_state.simulation_run = True
+
+    st.rerun()
 
     for i in range(5):
         st.session_state.logs.append(create_log(f"Step {i+1} complete — {datetime.now().strftime("%H:%M:%S")}"))
@@ -375,19 +563,339 @@ if run_simulation:
     <input type="checkbox" id="toggleTerminal">
 
     <!-- Terminal container -->
-     <!-- nonce: {time.time()} -->
+        <!-- nonce: {time.time()} -->
     <div class="terminal-container" id="terminalContainer">
-      <div class="terminal-header">
+        <div class="terminal-header">
         <!-- Label controls the checkbox -->
         <label for="toggleTerminal" class="terminal-toggle"></label>
         <span>Logs</span>
         <div></div>
-      </div>
-      <div class="terminal-body" id="terminalBody">
+        </div>
+        <div class="terminal-body" id="terminalBody">
         {logs_html}
-      </div>
+        </div>
     </div>
     """
         )
 
         time.sleep(0.5)
+
+with open(r"C:\Users\gabib\Desktop\Mestrado_IA\MS\MS_Household_Energy_Production\src\log\files\final_results_20251121_123019.json","r") as file:
+    json_data = json.loads(file.read())
+
+smart_data = json_data["smart"] if "smart" in json_data.keys() else None
+basic_data = json_data["basic"] if "basic" in json_data.keys() else None
+
+smart_keys = [i for i in smart_data.keys()]
+
+input_data = smart_data[smart_keys[0]]["input_data"].items()
+actions =[i.items() for i in smart_data[smart_keys[0]]["Actions"]]
+output_data = smart_data[smart_keys[0]]["output_data"].items()
+
+basic_keys = [i for i in basic_data.keys()]
+
+basic_input_data = basic_data[basic_keys[0]]["input_data"].items()
+basic_actions =[i.items() for i in basic_data[basic_keys[0]]["Actions"]]
+basic_output_data = basic_data[basic_keys[0]]["output_data"].items()
+
+text_window_1.html(
+        """
+        <div style='
+            height: 400px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: Consolas, monospace;
+            padding: 10px;
+            overflow-y: auto;
+            border-radius: 5px;
+            border: 1px solid #333;
+        '>
+        """ + "<br>".join(["Timestamp : " + smart_keys[st.session_state.index]] + [i[0] + " : " + str(i[1]) for i in input_data]) + "</div>"
+    )
+
+text_window_2.html(
+        """
+        <div style='
+            height: 400px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: Consolas, monospace;
+            padding: 10px;
+            overflow-y: auto;
+            border-radius: 5px;
+            border: 1px solid #333;
+        '>
+        """ + "<br>".join([j[0]  + " : " + str(j[1]) for i in actions for j in i]) + "</div>"
+    )
+
+text_window_3.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([i[0] + " : " + str(i[1]) for i in output_data]) + "</div>"
+        )
+
+text_window_4.html(
+    """
+    <div style='
+        height: 400px;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        font-family: Consolas, monospace;
+        padding: 10px;
+        overflow-y: auto;
+        border-radius: 5px;
+        border: 1px solid #333;
+    '>
+    """ + "<br>".join(["Timestamp : " + basic_keys[st.session_state.index_basic]] + [i[0] + " : " + str(i[1]) for i in basic_input_data]) + "</div>"
+)
+
+text_window_5.html(
+    """
+    <div style='
+        height: 400px;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        font-family: Consolas, monospace;
+        padding: 10px;
+        overflow-y: auto;
+        border-radius: 5px;
+        border: 1px solid #333;
+    '>
+    """ + "<br>".join([j[0]  + " : " + str(j[1]) for i in basic_actions for j in i]) + "</div>"
+)
+
+text_window_6.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([i[0] + " : " + str(i[1]) for i in basic_output_data]) + "</div>"
+        )
+
+
+if forward_click:
+    st.session_state.index += 1
+    input_data = smart_data[smart_keys[st.session_state.index]]["input_data"].items()
+    actions =[i.items() for i in smart_data[smart_keys[st.session_state.index]]["Actions"]]
+    output_data = smart_data[smart_keys[st.session_state.index]]["output_data"].items()
+    
+    text_window_1.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join(["Timestamp : " + smart_keys[st.session_state.index]] + [i[0] + " : " + str(i[1]) for i in input_data]) + "</div>"
+        )
+    
+    text_window_2.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([j[0]  + " : " + str(j[1]) for i in actions for j in i]) + "</div>"
+        )
+    
+    text_window_3.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([i[0] + " : " + str(i[1]) for i in output_data]) + "</div>"
+        )
+
+if backwards_click:
+    st.session_state.index -= 1
+    input_data = smart_data[smart_keys[st.session_state.index]]["input_data"].items()
+    actions =[i.items() for i in smart_data[smart_keys[st.session_state.index]]["Actions"]]
+    output_data = smart_data[smart_keys[st.session_state.index]]["output_data"].items()
+    
+    text_window_1.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join(["Timestamp : " + smart_keys[st.session_state.index]] + [i[0] + " : " + str(i[1]) for i in input_data]) + "</div>"
+        )
+    
+    text_window_2.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([j[0]  + " : " + str(j[1]) for i in actions for j in i]) + "</div>"
+        )
+    
+    text_window_3.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([i[0] + " : " + str(i[1]) for i in output_data]) + "</div>"
+        )
+
+if forward_click_1:
+    st.session_state.index_basic += 1
+    basic_input_data = basic_data[basic_keys[st.session_state.index_basic]]["input_data"].items()
+    basic_actions =[i.items() for i in basic_data[basic_keys[st.session_state.index_basic]]["Actions"]]
+    basic_output_data = basic_data[basic_keys[st.session_state.index_basic]]["output_data"].items()
+    
+    text_window_1.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join(["Timestamp : " + basic_keys[st.session_state.index_basic]] + [i[0] + " : " + str(i[1]) for i in basic_input_data]) + "</div>"
+        )
+    
+    text_window_2.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([j[0]  + " : " + str(j[1]) for i in basic_actions for j in i]) + "</div>"
+        )
+    
+    text_window_3.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([i[0] + " : " + str(i[1]) for i in basic_output_data]) + "</div>"
+        )
+
+if backwards_click_1:
+    st.session_state.index_basic -= 1
+    basic_input_data = basic_data[basic_keys[st.session_state.index_basic]]["input_data"].items()
+    basic_actions =[i.items() for i in basic_data[basic_keys[st.session_state.index_basic]]["Actions"]]
+    basic_output_data = basic_data[basic_keys[st.session_state.index_basic]]["output_data"].items()
+    
+    text_window_4.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join(["Timestamp : " + basic_keys[st.session_state.index_basic]] + [i[0] + " : " + str(i[1]) for i in basic_input_data]) + "</div>"
+        )
+    
+    text_window_5.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([j[0]  + " : " + str(j[1]) for i in basic_actions for j in i]) + "</div>"
+        )
+    
+    text_window_6.html(
+            """
+            <div style='
+                height: 400px;
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, monospace;
+                padding: 10px;
+                overflow-y: auto;
+                border-radius: 5px;
+                border: 1px solid #333;
+            '>
+            """ + "<br>".join([i[0] + " : " + str(i[1]) for i in basic_output_data]) + "</div>"
+        )
+
+with col3:
+    if st.session_state.simulation_run:
+        overview_button = st.button("Simulation Overview")
+
+        if overview_button:
+            display_simulation_overview(r"C:\Users\gabib\Desktop\Mestrado_IA\MS\MS_Household_Energy_Production\src\log\files\final_results_20251121_123019.json")
