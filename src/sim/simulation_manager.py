@@ -1,13 +1,18 @@
 from sim.data.json_result_manager import json_result_manager
 from ast import Dict
 from sim.model.model import HEMSModel
+from log.log_controller import log_controller
 
 class SimulationManager:
+    log_type = "simulation"
+
     def __init__(self):
         self.model_smart = HEMSModel(agent_type="smart")
         self.model_basic = HEMSModel(agent_type="basic")
-
+        
     def start_simulation(self, config, df_solar_production=None, df_wind_production=None, df_consumption=None, df_price=None) -> Dict:
+        log_controller.add_log(f"Starting simulation for {config}", self.log_type)
+        
         self.pass_configs_to_model(config, df_solar_production, df_wind_production, df_consumption, df_price)
         
         for i in range(self.model_smart.steps):
@@ -43,7 +48,7 @@ class SimulationConfigs:
         self.battery_max_capacity = config.get("max_capacity", 10)
 
         self.tariff = config.get("tariff", None)
-        self.complex_mode = config.get("complex_mode", False)
+        self.complex_mode = False
 
         self.df_solar_production = df_solar_production
         self.df_wind_production = df_wind_production

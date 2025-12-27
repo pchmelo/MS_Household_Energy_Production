@@ -3,10 +3,12 @@ from dotenv import load_dotenv
 from mesa import Model
 from mesa.datacollection import DataCollector
 from sim.agent.agent_base import HEMSAgent
+from log.log_controller import log_controller
 
 load_dotenv()
 
 class HEMSModel(Model):
+    log_type = "simulation"
 
     def __init__(self, agent_type="smart"):
         super().__init__()
@@ -57,12 +59,15 @@ class HEMSModel(Model):
         
         if simulation_configs.interval is None or simulation_configs.interval == 0:
             # Default to 1 hour intervals if None or 0 is provided
+            log_controller.add_log("Interval is None or 0, defaulting to 1 hour intervals", self.log_type)
             self.hour_interval = 1
             self.minute_interval = 0
         elif simulation_configs.interval == 60:
+            log_controller.add_log("The interval is 60 minutes, defaulting to 1 hour intervals", self.log_type)
             self.hour_interval = 1
             self.minute_interval = 0
         else:
+            log_controller.add_log(f"The interval is {simulation_configs.interval} minutes", self.log_type)
             self.hour_interval = 0
             self.minute_interval = simulation_configs.interval
         

@@ -15,6 +15,7 @@ load_dotenv()
 class HEMSAgent(Agent):
 
     log_type = "action_validation"
+    log_simulation_type = "simulation"
 
     def __init__(self, model, agent_type="smart", simulation_configs=None):
         super().__init__(model)
@@ -22,13 +23,16 @@ class HEMSAgent(Agent):
 
         if simulation_configs:
             if simulation_configs.complex_mode:
+                log_controller.add_log("Complex mode is enabled", self.log_simulation_type)
                 # Implement complex mode configurations if needed
                 pass
             else:
                 if simulation_configs.selected_date:
+                    log_controller.add_log(f"Selected date with API: {simulation_configs.selected_date}", self.log_simulation_type)
                     # Send date to data manager to start data collection
                     data_manager.start_data_collection(simulation_configs.selected_date)
                 else:
+                    log_controller.add_log("Selected date with own data (uploaded)", self.log_simulation_type)
                     data_manager.set_dataframes(simulation_configs.df_price, 
                                                 simulation_configs.df_solar_production, 
                                                 simulation_configs.df_wind_production, 

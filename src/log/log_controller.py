@@ -8,12 +8,14 @@ class LogController:
         "baseline_input": "\033[91m",
         "action_validation": "\033[94m",
         "smart_input": "\033[92m",
+        "simulation": "\033[93m",
     }
 
     type_mapping = {
         "baseline_input": "BASELINE INPUT",
         "action_validation": "ACTION VALIDATION",
         "smart_input": "SMART INPUT",
+        "simulation": "SIMULATION"
     }
 
     reset = "\033[0m"  
@@ -25,6 +27,7 @@ class LogController:
         self.baseline_input = os.getenv("BASELINE_INPUT", "FALSE") == "TRUE"
         self.action_validation = os.getenv("ACTION_VALIDATION", "FALSE") == "TRUE"
         self.smart_input = os.getenv("SMART_INPUT", "FALSE") == "TRUE"
+        self.simulation = os.getenv("SIMULATION", "FALSE") == "TRUE"
 
         current_date = datetime.now().strftime("%Y-%m-%d")
         log_folder = os.path.join(os.path.dirname(__file__), "files")
@@ -45,6 +48,8 @@ class LogController:
             elif self.action_validation:
                 pass
             elif self.smart_input:
+                pass
+            elif self.simulation:
                 pass
             else:
                 return

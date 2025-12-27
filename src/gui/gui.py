@@ -25,7 +25,7 @@ def create_log(log : str):
 
 @st.dialog("Confirm Data Collection",width='large')
 def confirm_collection_modal(date_str):
-    data_dir = os.path.join(r"sim/data/datafiles", date_str)
+    data_dir = os.path.join(src_dir, "sim", "data", "datafiles", date_str)
 
     # 2. Check if directory exists
     if os.path.exists(data_dir):

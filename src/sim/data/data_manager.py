@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from dotenv import load_dotenv
+from log.log_controller import log_controller
 
 try:
     from .api_manager import api_manager
@@ -12,6 +13,8 @@ load_dotenv()
 DATE_DEFAULT_DATE = os.getenv("DATE", "2025-01-01")
 
 class DataManager:
+    log_type = "simulation"
+
     def __init__(self, smooth_window=3, date=DATE_DEFAULT_DATE):
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.datafiles_dir = os.path.join(self.base_dir, "datafiles")
@@ -28,6 +31,7 @@ class DataManager:
 
         
     def start_data_collection(self, date: str):
+        log_controller.add_log(f"Starting data collection for date: {date}", self.log_type)
         self.use_api = True
 
         self.date = date
@@ -36,31 +40,37 @@ class DataManager:
         date_folder = os.path.join(self.datafiles_dir, date)
 
         if not os.path.exists(date_folder) or not os.path.isdir(date_folder):
-            print(f"Folder for date {date} does not exist")
+            log_controller.add_log(f"Folder for date {date} does not exist", self.log_type)
             api_manager.generate_data(self.date)
         
         self.get_data_for_date()
-        """
-        print(f"Solar production: \n{self.df_solar_production.head()}")
-        print(f"Wind production: \n{self.df_wind_production.head()}")
-        print(f"Market prices: \n{self.df_price_data.head()}")
-        print(f"Consumption: \n{self.df_consumption.head()}")
-        """
+        
+        log_controller.add_log(f"Solar production: \n{self.df_solar_production.head()}", self.log_type)
+        log_controller.add_log(f"Wind production: \n{self.df_wind_production.head()}", self.log_type)
+        log_controller.add_log(f"Market prices: \n{self.df_price_data.head()}", self.log_type)
+        log_controller.add_log(f"Consumption: \n{self.df_consumption.head()}", self.log_type)
+        
         return True
 
     def get_model_data_entry(self, time_stamp: tuple = None, date: str = None):
         if time_stamp is None:
-            raise ValueError("Time stamp must be provided")
+            log_controller.add_log("Time stamp must be provided", self.log_type)
+            return None
         
         if (date is not None and (not hasattr(self, 'date') or self.date != date)) and self.use_api:
+            log_controller.add_log(f"Date {date} is different from {self.date}", self.log_type)
             self.start_data_collection(date)
 
         hour, minute = time_stamp
+
+        log_controller.add_log(f"Time stamp: {time_stamp}", self.log_type)
 
         price = self.calculate_price_interval(hour, minute)
         solar_production = self.calculate_solar_production_interval(hour, minute)
         wind_production = self.calculate_wind_production_interval(hour, minute)
         consumption = self.calculate_consumption_interval(hour, minute)
+
+        log_controller.add_log(f"Price: {price}, Solar production: {solar_production}, Wind production: {wind_production}, Consumption: {consumption}", self.log_type)
 
         return price, solar_production, wind_production, consumption
 
