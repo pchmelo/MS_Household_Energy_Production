@@ -45,10 +45,12 @@ class DataManager:
         
         self.get_data_for_date()
         
+        '''
         log_controller.add_log(f"Solar production: \n{self.df_solar_production.head()}", self.log_type)
         log_controller.add_log(f"Wind production: \n{self.df_wind_production.head()}", self.log_type)
         log_controller.add_log(f"Market prices: \n{self.df_price_data.head()}", self.log_type)
         log_controller.add_log(f"Consumption: \n{self.df_consumption.head()}", self.log_type)
+        '''
         
         return True
 
