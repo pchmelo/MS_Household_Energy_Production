@@ -422,7 +422,7 @@ def render_results(json_data):
     smart_data = json_data["smart"] if "smart" in json_data.keys() else None
     basic_data = json_data["basic"] if "basic" in json_data.keys() else None
 
-    result_tabs = st.tabs(["Smart Agent Actions","Basic Agent Actions","Final Results"])
+    result_tabs = st.tabs(["Smart Agent Actions","Basic Agent Actions","Final Results","Model Statistics"])
     with result_tabs[0]:
         ems_monitor_smart(smart_data)
 
@@ -499,3 +499,13 @@ def render_results(json_data):
             **What it is:** The amount of energy (kW) the agent successfully diverted from the grid by using Solar or Battery power.
             - **Higher is better:** It means the agent is maximizing self-sufficiency and reducing the home's reliance on external energy.
             """)
+    
+    with result_tabs[3]:
+        csv_dir = os.path.join(src_dir, "sim", "agent", "smart", "models","csv_exports")
+        
+        if os.path.exists(csv_dir):
+            for col, filename in zip(st.columns([2,2]), os.listdir(csv_dir)):
+                with col:
+                    file_path = os.path.join(csv_dir, filename)
+                    df = pd.read_csv(file_path)
+                    st.line_chart(df,x="Step",y="Value")

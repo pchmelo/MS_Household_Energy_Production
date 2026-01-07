@@ -25,16 +25,14 @@ zoom = 1.3
 
 st.markdown(f"""
     <style>
-        /* Target the main content area specifically */
-        .block-container {{
-            transform: scale({zoom});
-            transform-origin: top center;
-            width: {100/zoom}%; /* Offsets the scale so horizontal scrollbars don't appear */
+        /* Increase base font size instead of zooming the whole container */
+        html {{
+            font-size: {zoom * 100}%; 
         }}
         
-        /* Adjust the sidebar if necessary */
-        [data-testid="stSidebar"] {{
-            zoom: {zoom};
+        /* Ensure sliders take up the full relative width of their parent */
+        div[data-baseweb="slider"] {{
+            width: 100%;
         }}
     </style>
     """, unsafe_allow_html=True)
@@ -186,13 +184,15 @@ if st.session_state.new_simulation:
     new_simulation.empty()
     previous_results.empty()
 
-    if st.button("Back",key="B1"):
-        st.session_state.new_simulation = False
-        st.rerun()
+    co,_ =  st.columns([3,7])
+    with co:
+        if st.button("<< Back",key="B1",use_container_width=True):
+            st.session_state.new_simulation = False
+            st.rerun()
 
     with st.sidebar:
         # INTERVAL slider
-        interval = st.slider("Interval (minutes)", min_value=15, max_value=60, value=15, step=15)
+        interval = st.slider("Interval (minutes)", min_value=15, max_value=60, value=15, step=15,key="interval_slider_fixed")
         # MAX_CAPACITY
         max_capacity = st.number_input("Max Battery Capacity (kWh)", min_value=1, max_value=1000,value=10)
         # TARIFF
@@ -204,7 +204,7 @@ if st.session_state.new_simulation:
             insert_csv = st.button("Insert CSV",use_container_width=True)
 
         with colf:
-            use_api = st.button("Use api",use_container_width=True)
+            use_api = st.button("Use API",use_container_width=True)
 
         reset_config = st.button("Clear data",use_container_width=True,key="reset_config")
 
@@ -291,20 +291,23 @@ if st.session_state.new_simulation:
         if (st.session_state.selected_date != None) or (st.session_state.consumption_data != None and st.session_state.market_data != None and st.session_state.solar_data != None and st.session_state.wind_data != None):
                 #Print the input data
                 if st.session_state.selected_date != None:
+                    st.session_state.inserting_data = False
+                    st.session_state.interval = interval
+                    st.session_state.max_capacity = max_capacity
+                    st.session_state.tariff = tariff
                     st.info(f"Data Loaded: \n\n Selected date: {st.session_state.selected_date} \n\n Interval: {st.session_state.interval} minutes \n\n Max Capacity: {st.session_state.max_capacity} kWh \n\n Tariff: {st.session_state.tariff}%")
 
                 #Print the input data
                 if (st.session_state.consumption_data != None and st.session_state.market_data != None and st.session_state.solar_data != None and st.session_state.wind_data != None):
+                    st.session_state.inserting_data = False
+                    st.session_state.interval = interval
+                    st.session_state.max_capacity = max_capacity
+                    st.session_state.tariff = tariff
                     st.info(f"Data Loaded: \n\n Interval: {st.session_state.interval} minutes \n\n Max Capacity: {st.session_state.max_capacity} kWh \n\n Tariff: {st.session_state.tariff}%")
 
                 #Start the simulation
                 if st.button("Run Simulation",type="primary",key="RS1", use_container_width=True):
                     with st.spinner("Simulating Agent Actions..."):
-                        st.session_state.inserting_data = False
-                        st.session_state.interval = interval
-                        st.session_state.max_capacity = max_capacity
-                        st.session_state.tariff = tariff
-
                         config = {
                         "selected_date": st.session_state.get("selected_date"),
                         "interval": st.session_state.get("interval"),
@@ -351,10 +354,12 @@ if st.session_state.previous_results:
     new_simulation.empty()
     previous_results.empty()
     homescreen.empty()
-
-    if st.button("Back"):
-        st.session_state.previous_results = False
-        st.rerun()
+    
+    cy,_ =  st.columns([3,7])
+    with cy:
+        if st.button("<< Back",key="B0",use_container_width=True):
+            st.session_state.previous_results = False
+            st.rerun()
         
     result_files = sorted(results_dir.glob("final_results_*.json"), reverse=True)
     
