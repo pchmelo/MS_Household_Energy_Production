@@ -12,11 +12,11 @@ Python 3.12 \
 pip 
 
 ## Running with .venv
-create virtual environment \
+create virtual environment 
 
 pip install -r src/requirements.txt
 
-make run \
+make run 
 
 ## Project Architecture
 docs/: project documentation and design notes. \
