@@ -335,11 +335,22 @@ class DataManager:
     
     def set_dataframes(self, df_price, df_solar, df_wind, df_consumption):
         self.use_api = False
+        self.last_time_stamp = (0, 0)
 
-        self.df_price_data = df_price
-        self.df_solar_production = df_solar
-        self.df_wind_production = df_wind
-        self.df_consumption = df_consumption
+        self.df_price_data = df_price.copy()
+        self.df_solar_production = df_solar.copy()
+        self.df_wind_production = df_wind.copy()
+        self.df_consumption = df_consumption.copy()
+        
+        def parse_time_with_24(time_str):
+            hour, minute = map(int, time_str.split(':'))
+            total_minutes = hour * 60 + minute
+            return total_minutes
+        
+        self.df_solar_production['total_minutes'] = self.df_solar_production.iloc[:, 0].apply(parse_time_with_24)
+        self.df_wind_production['total_minutes'] = self.df_wind_production.iloc[:, 0].apply(parse_time_with_24)
+        self.df_price_data['total_minutes'] = self.df_price_data.iloc[:, 0].apply(parse_time_with_24)
+        self.df_consumption['total_minutes'] = self.df_consumption.iloc[:, 0].apply(parse_time_with_24)
 
 
 data_manager = DataManager()
