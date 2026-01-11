@@ -12,10 +12,8 @@ Python 3.12 \
 pip 
 
 ## Running with .venv
-create virtual environment 
-
-pip install -r src/requirements.txt
-
+create virtual environment (if you prefer) \
+pip install -r src/requirements.txt \
 make run 
 
 ## Project Architecture
