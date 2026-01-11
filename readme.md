@@ -8,13 +8,13 @@ The MS Household Energy Production project is a comprehensive simulation framewo
 - Export of results to CSV/JSON for analysis.
 
 ## Requirements
-Python 3.12
-pip
+Python 3.12.
+pip.
 
 ## Running with .venv
-create virtual environment
-pip install -r src/requirements.txt
-make run
+create virtual environment.
+pip install -r src/requirements.txt.
+make run.
 
 ## Project Description
 docs/: project documentation and design notes.
