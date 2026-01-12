@@ -121,9 +121,6 @@ if "market_data" not in st.session_state:
 if "solar_data" not in st.session_state:
     st.session_state.solar_data = None
 
-if "wind_data" not in st.session_state:
-    st.session_state.wind_data = None
-
 if "index" not in st.session_state:
     st.session_state.index = 0
 
@@ -221,7 +218,6 @@ if st.session_state.new_simulation:
             st.session_state.consumption_data = None
             st.session_state.market_data = None
             st.session_state.solar_data = None
-            st.session_state.wind_data = None
             st.rerun()
 
         if insert_csv:
@@ -233,7 +229,6 @@ if st.session_state.new_simulation:
             st.session_state.consumption_data = None
             st.session_state.market_data = None
             st.session_state.solar_data = None
-            st.session_state.wind_data = None
             st.session_state.inserting = False
             st.session_state.data_inserted = False
             st.session_state.show_calendar = True
@@ -257,13 +252,7 @@ if st.session_state.new_simulation:
                 st.session_state.solar_data = df
                 st.success("File uploaded successfully!")
             
-            uploaded_file_4 = st.file_uploader("Insert wind production data", type=["csv"], key="wind_uploader")
-            if uploaded_file_4:
-                df = pd.read_csv(uploaded_file_4)
-                st.session_state.wind_data = df
-                st.success("File uploaded successfully!")
-            
-            if (uploaded_file_1 != None) and (uploaded_file_2 != None) and (uploaded_file_3 != None) and  (uploaded_file_4 != None):
+            if (uploaded_file_1 != None) and (uploaded_file_2 != None) and (uploaded_file_3 != None):
                 st.session_state.inserting = False
                 st.session_state.data_inserted = True
                 st.rerun()
@@ -329,7 +318,6 @@ if st.session_state.new_simulation:
 
                         json_res = sim_manager.start_simulation(config=config,
                                                         df_solar_production=st.session_state.solar_data,
-                                                        df_wind_production=st.session_state.wind_data,
                                                         df_consumption=st.session_state.consumption_data,
                                                         df_price=st.session_state.market_data)
                         
