@@ -178,8 +178,8 @@ def display_input_metrics(input_data,timestamp):
             )
     
     meta = {
-        "Solar_Production": {"icon": "☀️", "unit": "kW"},
-        "Consumption": {"icon": "🏠", "unit": "kW"},
+        "Solar_Production": {"icon": "☀️", "unit": "kWh"},
+        "Consumption": {"icon": "🏠", "unit": "kWh"},
         "Current_Capacity": {"icon": "🔋", "unit": "kWh"},
         "Price": {"icon": "💰", "unit": "/kWh"}
     }
@@ -280,32 +280,35 @@ def draw_ems_map(actions_list):
 
             <g style="{p2c_style}">
                 <path d="M140,40 L460,40" stroke="#fbbf24" stroke-width="3" fill="none" class="flow-line" marker-end="url(#arrow)" />
-                <text x="300" y="30" fill="#fbbf24" class="val" text-anchor="middle">{p2c:.4f} kW</text>
+                <text x="300" y="30" fill="#fbbf24" class="val" text-anchor="middle">{p2c:.2f} kWh</text>
             </g>
 
             <g style="{p2b_style}">
                 <path d="M100,90 L100,220" stroke="#fbbf24" stroke-width="3" fill="none" class="flow-line" marker-end="url(#arrow)" />
-                <text x="90" y="160" fill="#fbbf24" class="val" text-anchor="middle" transform="rotate(-90, 90, 160)">{p2b:.4f} kW</text>
+                <text x="90" y="160" fill="#fbbf24" class="val" text-anchor="middle" transform="rotate(-90, 90, 160)">{p2b:.2f} kWh</text>
+
             </g>
 
             <g style="{b2c_style}">
                 <path d="M140,240 L460,70" stroke="#00FF00" stroke-width="3" fill="none" class="flow-line" marker-end="url(#arrow)" />
-                <text x="250" y="150" fill="#00FF00" class="val" transform="rotate(-28, 250, 150)">{b2c:.4f} kW</text>
+                <text x="250" y="150" fill="#00FF00" class="val" transform="rotate(-28, 250, 150)">{b2c:.2f} kWh</text>
+
             </g>
 
             <g style="{g2c_style}">
                 <path d="M500,220 L500,90" stroke="#FACC15" stroke-width="3" fill="none" class="flow-line" marker-end="url(#arrow)" />
-                <text x="515" y="160" fill="#FACC15" class="val" text-anchor="middle" transform="rotate(90, 515, 160)">{g2c:.4f} kW</text>
+                <text x="515" y="160" fill="#FACC15" class="val" text-anchor="middle" transform="rotate(90, 515, 160)">{g2c:.2f} h</text>
+
             </g>
 
             <g style="{b2g_style}">
                 <path d="M140,265 L460,265" stroke="#FF4B4B" stroke-width="3" fill="none" class="flow-line" marker-end="url(#arrow)" />
-                <text x="300" y="255" fill="#FF4B4B" class="val" text-anchor="middle">{b2g:.4f} kW</text>
+                <text x="300" y="255" fill="#FF4B4B" class="val" text-anchor="middle">{b2g:.2f} kWh</text>
             </g>
             
             <g style="{g2b_style}">
                 <path d="M460,285 L140,285" stroke="#60A5FA" stroke-width="3" fill="none" class="flow-line" marker-end="url(#arrow)" />
-                <text x="300" y="310" fill="#60A5FA" class="val" text-anchor="middle">{g2b:.4f} kW</text>
+                <text x="300" y="310" fill="#60A5FA" class="val" text-anchor="middle">{g2b:.2f} kWh</text>
             </g>
         </svg>
     </div>
@@ -439,7 +442,7 @@ def render_results(json_data):
 
         # 2. Format Data for Table
         comparison_data = {
-            "Metric": ["Balance (€)", "Consumption Savings (kW)"],
+            "Metric": ["Balance (€)", "Consumption Savings (kWh)"],
             "Smart Agent": [
                 f"{final_results['smart_agent_balance']:.2f}", 
                 f"{final_results['smart_agent_consumption_saving']:.2f}"
@@ -496,7 +499,7 @@ def render_results(json_data):
 
         with st.expander("📊 Consumption Saving"):
             st.write("""
-            **What it is:** The amount of energy (kW) the agent successfully diverted from the grid by using Solar or Battery power.
+            **What it is:** The amount of energy (kWh) the agent successfully diverted from the grid by using Solar or Battery power.
             - **Higher is better:** It means the agent is maximizing self-sufficiency and reducing the home's reliance on external energy.
             """)
     
